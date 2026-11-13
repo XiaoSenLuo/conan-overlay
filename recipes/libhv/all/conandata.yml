@@ -1,0 +1,4 @@
+sources:
+  "1.3.4":
+    url: "https://github.com/ithewei/libhv/archive/refs/tags/v1.3.4.tar.gz"
+    sha256: "f0a9a197f90da55cc3ff104f9c7a27cc927f117b6c18613c3292726068588e10"
