@@ -1,0 +1,38 @@
+# 构建宿主机 profile — 开发机 x86_64 Linux (Ubuntu 22.04, 系统 GCC 11.4)
+#
+# conan 语义中 build profile 描述的是 "执行编译的平台" (Yocto 术语的构建机), 通过 -pr:b 传入;
+# 仅用于 tool_requires 构建工具 (如 cmake 包) 的编译, 使用系统默认工具链,
+# 交叉依赖本身始终使用 host profile (conan/profile-Linux-armv7hf-gcc-13-23.txt) 的交叉工具链.
+#
+# 按 conan 官方 profiles 推荐用法组织 [buildenv]/[runenv]/[conf], 各段说明见 host profile 注释.
+#
+# [settings] 按官方文档 "Getting settings from a filename" 从本文件名提取:
+#   profile-<os>-<arch>-<compiler>-<compiler.version>-<cppstd>
+# 当前文件名编码: Linux / x86_64 / gcc 11 / gnu++17.
+# 注意: profile_name 为完整文件名 (含 .txt 扩展名), 需先去掉扩展名再 split;
+# 提取变量使用大写命名, 避免遮蔽/污染 jinja 渲染上下文的小写保留名 (如小写 os 会遮蔽 os 模块).
+
+{% set PROFILE_BASE_NAME = profile_name.rsplit('/', 1)[-1].rsplit('.', 1)[0] %}
+{% set PREFIX, OS, ARCH, COMPILER, COMPILER_VERSION, CPP_VERSION = PROFILE_BASE_NAME.split('-') %}
+
+[settings]
+os={{ OS }}
+arch={{ ARCH }}
+compiler={{ COMPILER }}
+compiler.version={{ COMPILER_VERSION }}
+compiler.libcxx=libstdc++11
+compiler.cppstd={{ CPP_VERSION }}
+build_type=Release
+
+[buildenv]
+CC=gcc
+CXX=g++
+LD=ld
+
+[runenv]
+LD_LIBRARY_PATH=(path)/usr/lib/x86_64-linux-gnu
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.build:exelinkflags=["-Wl,-O1", "-Wl,--hash-style=gnu", "-Wl,--as-needed", "-Wl,-z,relro", "-Wl,-z,now"]
+tools.build:sharedlinkflags=["-Wl,-O1", "-Wl,--hash-style=gnu", "-Wl,--as-needed", "-Wl,-z,relro", "-Wl,-z,now"]
