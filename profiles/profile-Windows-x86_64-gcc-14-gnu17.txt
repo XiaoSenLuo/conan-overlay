@@ -1,0 +1,32 @@
+# Windows 宿主机 profile — 开发机 x86_64 Windows + MinGW-w64 GCC 14 (winlibs UCRT), gnu++17
+#
+# 原生构建时同时用作 host/build profile (需分别以 -pr:h/-pr:b 传入;
+# 仅传 -pr 时 build profile 会回退到默认 profile, 工具链风格可能错配):
+# rust 工具链配方 (tool_requires, 构建上下文) 依本 profile 的 compiler 家族 (gcc = mingw)
+# 选择 gnu 风格组件 (rustc/cargo/rust-std/rust-mingw 的 *-pc-windows-gnu dist 包),
+# zenohc 依其 host 侧 settings 选择 cargo 目标 x86_64-pc-windows-gnu (链接器为 PATH 中的 mingw gcc).
+#
+# [settings] 按官方文档 "Getting settings from a filename" 从本文件名提取:
+#   profile-<os>-<arch>-<compiler>-<compiler.version>-<cppstd>
+# 当前文件名编码: Windows / x86_64 / gcc 14 / gnu++17.
+# 提取变量使用大写命名, 避免遮蔽/污染 jinja 渲染上下文的小写保留名 (如小写 os 会遮蔽 os 模块).
+
+{% set PROFILE_BASE_NAME = profile_name.replace('\\', '/').rsplit('/', 1)[-1].rsplit('.', 1)[0] %}
+{% set PREFIX, OS, ARCH, COMPILER, COMPILER_VERSION, CPP_VERSION = PROFILE_BASE_NAME.split('-') %}
+
+[settings]
+os={{ OS }}
+arch={{ ARCH }}
+compiler={{ COMPILER }}
+compiler.version={{ COMPILER_VERSION }}
+compiler.libcxx=libstdc++11
+compiler.cppstd={{ CPP_VERSION }}
+build_type=Release
+
+[buildenv]
+# mingw-w64 (winlibs UCRT) 已在 PATH; 显式声明供 zenohc 的 cargo 链接器选取 (CC 取首 token)
+CC=gcc
+CXX=g++
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
