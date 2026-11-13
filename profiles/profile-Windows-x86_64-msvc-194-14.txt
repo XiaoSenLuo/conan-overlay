@@ -1,0 +1,27 @@
+# Windows 宿主机 profile — 开发机 x86_64 Windows + MSVC 194 (VS2022), C++14
+#
+# 原生构建时同时用作 host/build profile (需分别以 -pr:h/-pr:b 传入;
+# 仅传 -pr 时 build profile 会回退到默认 profile, 工具链风格可能错配):
+# rust 工具链配方 (tool_requires, 构建上下文) 依本 profile 的 compiler 家族选择
+# msvc 风格组件 (rustc/cargo/rust-std 的 *-pc-windows-msvc dist 包),
+# zenohc 依其 host 侧 settings 选择 cargo 目标 x86_64-pc-windows-msvc.
+#
+# compiler.runtime=dynamic 与 rust *-pc-windows-msvc 目标的默认 CRT 链接一致
+# (rust 静态库对象引用 MSVCRT, 消费方 /MT 链接会触发 LNK4098 CRT 冲突).
+#
+# [settings] 按官方文档 "Getting settings from a filename" 从本文件名提取:
+#   profile-<os>-<arch>-<compiler>-<compiler.version>-<cppstd>
+# 当前文件名编码: Windows / x86_64 / msvc 194 / C++14.
+
+{% set PROFILE_BASE_NAME = profile_name.replace('\\', '/').rsplit('/', 1)[-1].rsplit('.', 1)[0] %}
+{% set PREFIX, OS, ARCH, COMPILER, COMPILER_VERSION, CPP_VERSION = PROFILE_BASE_NAME.split('-') %}
+
+[settings]
+os={{ OS }}
+arch={{ ARCH }}
+compiler={{ COMPILER }}
+compiler.version={{ COMPILER_VERSION }}
+compiler.runtime=dynamic
+compiler.runtime_type=Release
+compiler.cppstd={{ CPP_VERSION }}
+build_type=Release
