@@ -1,0 +1,4 @@
+sources:
+  "2.12.1":
+    url: "https://github.com/andrew-gresyk/HFSM2/archive/refs/tags/2.12.1.tar.gz"
+    sha256: "655176e7ad376ef9ee88f758ec1384463264f48e3798e981de965a76895799ab"
