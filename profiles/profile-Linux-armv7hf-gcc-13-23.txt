@@ -1,0 +1,63 @@
+# amd-linux (Yocto SDK) / armv7 目标平台 profile — ZYNQ (cortex-a9, thumb, neon, hard-float)
+#
+# conan 语义中 host profile 描述的是 "最终二进制的运行平台" (Yocto 术语的目标机),
+# 交叉编译时通过 -pr:h 传入; 构建机 (x86_64) 的 build profile 见 profile-Linux-x86_64-gcc-11-gnu17.txt.
+#
+# 按 conan 官方 profiles 推荐用法组织 (https://docs.conan.io/2/reference/config_files/profiles.html):
+#   [buildenv] — 交叉工具链环境: CC/CXX/LD 为裸工具名, 经 PATH 解析到 Yocto SDK 交叉工具链
+#     (由 SDK 环境脚本的 PATH 提供).
+#   [runenv]  — 目标机运行时库搜索路径, 动态链接依赖时使用 (本项目依赖静态链接, 仅备用;
+#     conan 依赖包自身的 lib 目录由 VirtualRunEnv 自动追加到生成的 conanrun.sh).
+#   [conf]    — 统一声明构建选项与链接选项:
+#     * tools.build:sysroot: sysroot 路径 (conan_toolchain.cmake 中生成 set(CMAKE_SYSROOT ...),
+#       编译与链接自动携带 --sysroot); Yocto 交叉编译器未内建 sysroot (-print-sysroot 为
+#       /not/exist), 必须显式声明.
+#     * tools.build:cflags/cxxflags: 体系结构/ABI 标志
+#       (-mthumb -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9, 与 Yocto SDK 环境脚本 CC 内嵌标志一致).
+#     * tools.build:exelinkflags/sharedlinkflags: 链接加固选项 (与 Yocto SDK LDFLAGS 一致).
+#     * tools.cmake.cmaketoolchain:extra_variables: binutils 显式指向 Yocto SDK 原生工具链 ——
+#       项目 CMakeLists 会先设置 CMAKE_SYSROOT(目标机根), 否则 CMake 会在目标 sysroot 中解析到
+#       ARM 架构的 ar/ranlib 导致 "Exec format error".
+#     这些 conf 通过 conan_toolchain.cmake 同样作用于所有依赖包自身的构建.
+#
+# [settings] 按官方文档 "Getting settings from a filename" 从本文件名提取:
+#   profile-<os>-<arch>-<compiler>-<compiler.version>-<cppstd>
+# 当前文件名编码: Linux / armv7hf (hard-float) / gcc 13 / C++23.
+# 注意: profile_name 为完整文件名 (含 .txt 扩展名, 路径传入时含目录), 需先取 basename 并
+# 去掉扩展名再 split; 提取变量使用大写命名, 避免遮蔽/污染 jinja 渲染上下文的小写保留名
+# (如小写 os 会遮蔽 os 模块).
+#
+# 使用前提: 当前 shell 已 source Yocto SDK 环境脚本 (提供 PATH 中的交叉工具链,
+# 以及 SYSROOT/TARGET_TRIPLET 推导所需的 SDKTARGETSYSROOT / OECORE_NATIVE_SYSROOT 环境变量).
+
+{% set TARGET_TRIPLET = "arm-amd-linux-gnueabi" %}
+{% set TOOL_FULL_PREFIX = os.path.join(os.getenv('OECORE_NATIVE_SYSROOT'), 'usr/bin', TARGET_TRIPLET, TARGET_TRIPLET ~ '-') %}
+{% set SYSROOT = os.getenv("SDKTARGETSYSROOT") %}
+{% set PROFILE_BASE_NAME = profile_name.rsplit('/', 1)[-1].rsplit('.', 1)[0] %}
+{% set PREFIX, OS, ARCH, COMPILER, COMPILER_VERSION, CPP_VERSION = PROFILE_BASE_NAME.split('-') %}
+
+[settings]
+os={{ OS }}
+arch={{ ARCH }}
+compiler={{ COMPILER }}
+compiler.version={{ COMPILER_VERSION }}
+compiler.libcxx=libstdc++11
+compiler.cppstd={{ CPP_VERSION }}
+build_type=Release
+
+[buildenv]
+CC={{ TARGET_TRIPLET }}-gcc
+CXX={{ TARGET_TRIPLET }}-g++
+LD={{ TARGET_TRIPLET }}-ld
+
+[runenv]
+LD_LIBRARY_PATH=(path)/usr/lib:/usr/local/lib
+
+[conf]
+tools.build:sysroot={{ SYSROOT }}
+tools.build:cflags=["-mthumb", "-mfpu=neon", "-mfloat-abi=hard", "-mcpu=cortex-a9"]
+tools.build:cxxflags=["-mthumb", "-mfpu=neon", "-mfloat-abi=hard", "-mcpu=cortex-a9"]
+tools.build:exelinkflags=["-Wl,-O1", "-Wl,--hash-style=gnu", "-Wl,--as-needed", "-Wl,-z,relro", "-Wl,-z,now"]
+tools.build:sharedlinkflags=["-Wl,-O1", "-Wl,--hash-style=gnu", "-Wl,--as-needed", "-Wl,-z,relro", "-Wl,-z,now"]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.cmake.cmaketoolchain:extra_variables={"CMAKE_AR": "{{ TOOL_FULL_PREFIX }}ar", "CMAKE_RANLIB": "{{ TOOL_FULL_PREFIX }}ranlib", "CMAKE_C_COMPILER_AR": "{{ TOOL_FULL_PREFIX }}gcc-ar", "CMAKE_C_COMPILER_RANLIB": "{{ TOOL_FULL_PREFIX }}gcc-ranlib", "CMAKE_CXX_COMPILER_AR": "{{ TOOL_FULL_PREFIX }}gcc-ar", "CMAKE_CXX_COMPILER_RANLIB": "{{ TOOL_FULL_PREFIX }}gcc-ranlib"}
